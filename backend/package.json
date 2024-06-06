@@ -1,0 +1,35 @@
+{
+  "name": "baitap_todoapp",
+  "version": "1.0.0",
+  "description": "todo app",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "nodemon --inspect src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ducbidapne/TodoApp.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ducbidapne/TodoApp/issues"
+  },
+  "homepage": "https://github.com/ducbidapne/TodoApp#readme",
+  "dependencies": {
+    "body-parse": "^0.1.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "date-and-time": "^3.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongo": "^0.1.0",
+    "mongodb": "^6.7.0",
+    "mongoose": "^8.4.1",
+    "schema": "^0.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.2"
+  }
+}
