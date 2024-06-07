@@ -26,10 +26,14 @@ body {
 }
 
 .info-container {
+  margin-top: 300px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 5px;
+}
+.popup{
+  margin-top: 100px;
 }
 
 .add {
@@ -52,7 +56,7 @@ button,select {
 
 button {
   font-weight: 600;
-  padding: 10px 15px;
+  padding: 10px 30px;
   cursor: pointer;
 }
 
@@ -83,6 +87,7 @@ button {
 .search-input {
   width: 200px;
 }
+
 
 table {
   font-family: "Playpen Sans", cursive;
@@ -144,4 +149,21 @@ table th {
   button {
     margin: 3px 0;
   }
+}
+.search-input{
+  display: inline;
+}
+#select{
+  padding: 10px 15px;
+  margin-right: 50px;
+}
+#search-text{
+  margin-right: 10px;
+}
+#buttonSave{
+  margin-right: 20px;
+  background-color: #04aa6d;
+}
+#buttonCancel{
+  background-color: crimson;
 }

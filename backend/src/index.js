@@ -8,8 +8,6 @@ var ObjectId = require("mongodb").ObjectId;
 var bodyParser = require("body-parser");
 const mongoose = require('mongoose');
 
-var Task = require("./models/TaskModel")
-var User = require("./models/UserModel")
 const routes = require("./routes/route");
 
 var mainURL = process.env.MAIN_URL+process.env.PORT;

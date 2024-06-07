@@ -1,39 +1,88 @@
 import { useRef, useEffect, useState } from "react";
-import ReactSearchBox from "react-search-box";
-import React, { Component } from "react";
+import Popup from 'reactjs-popup';
+import { format } from 'date-fns';
+import 'reactjs-popup/dist/index.css';
+import Modal from 'react-modal';
+import React from 'react';
 
 const DataTable = () => {
-  const [data, setData] = useState([]);
-  const [originalData, setOriginalData] = useState([]);
-  const [searchAssignee, setSearchAssignee] = useState("");
+  const customStyles = {
+    content: {
+      backgroundColor: '#2f2b2b',
+      top: '50%',
+      left: '50%',
+      right: 'auto',
+      bottom: 'auto',
+      marginRight: '-50%',
+      transform: 'translate(-50%, -50%)',
+    },
+  };
+  Modal.setAppElement(document.getElementById('root'));
+  let subtitle;
+  const [modalIsOpen, setIsOpen] = React.useState(false);
+  const [modalData, setModalData] = React.useState({});
 
+  function openModal(item) {
+    setModalData(item);
+    setIsOpen(true);
+  }
+
+  function afterOpenModal() {
+    // references are now sync'd and can be accessed.
+    subtitle.style.color = '#f00';
+  }
+
+  function closeModal() {
+    setIsOpen(false);
+  }
+
+  const [users, setUsers] = useState([]);
+  const [data, setData] = useState([]);
+  const [tempData, setTempData] = useState([]);
+  const [totalPage, setTotalPage] = useState([]);
+  const [searchAssignee, setSearchAssignee] = useState("");
   const [editId, setEditId] = useState(false);
-  const [formData, setFormData] = useState({ title: "", assignee: "", content: "",status:"",create_at:"" });
+  const [formData, setFormData] = useState({ title: "", assignee: "", content: "", status: "Todo", create_at: "", name: "" });
   const [searchTitle, setSearchTitle] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const outsideClick = useRef(false);
-  const itemsPerPage = 5;
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  let filteredItems = data;
-  const filteredData = filteredItems.slice(indexOfFirstItem, indexOfLastItem);
+  const filteredData = data;
+  const total = totalPage;
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
 
-    useEffect(() => {
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/all-user');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.user);
+      } else {
+        console.error('Failed to fetch users');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isPopupOpen) {
+      fetchUsers();
+    }
+  }, [isPopupOpen]);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTitle, searchAssignee]);
+
   useEffect(() => {
     if (!editId) return;
-
     let selectedItem = document.querySelectorAll(`[id='${editId}']`);
     selectedItem[0].focus();
   }, [editId]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        outsideClick.current &&
-        !outsideClick.current.contains(event.target)
-      ) {
+      if (outsideClick.current && !outsideClick.current.contains(event.target)) {
         setEditId(false);
       }
     };
@@ -43,56 +92,131 @@ const DataTable = () => {
     };
   }, []);
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const paginate = (pageNumber) => {
+    setCurrentPage(pageNumber);
+
+    var query = 'http://127.0.0.1:3000/task?page=' + pageNumber.toString() + "&limit=5";
+    // console.log("Khi bam nut" + query);
+    fetch(query)
+      .then((res) => res.json())
+      .then((data) => {
+        setData(data.result);
+        // setOriginalData(data.result);
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
+  };
 
   const handleSearch = (event) => {
     setSearchTitle(event.target.value);
-    search(event.target.value)
   };
+
   const handleAssigneeSearch = (event) => {
     setSearchAssignee(event.target.value);
-    searchByAssignee(event.target.value);
   };
-  function searchByAssignee(assignee) {
-    const updatedList = originalData.filter((item) => item.assignee.includes(assignee));
-    setData(updatedList);
-  }
-  function search(value){
-    const updatedList = originalData.filter((item) => item.title.includes(value));
-    setData(updatedList);v
-  }
+
+  const searchByTitle = () => {
+    if (searchTitle === "") {
+      var query = 'http://127.0.0.1:3000/task?page=1&?limit=5';
+      fetch(query)
+        .then((res) => res.json())
+        .then((data) => {
+          var array = [];
+          for (let index = 0; index < 5; index++) {
+            array.push(data.result[index]);
+          }
+          setData(array);
+          setTotalPage(data.totalPages + 1);
+        })
+        .catch((err) => {
+          console.log(err.message);
+        });
+    } else {
+      var query = 'http://127.0.0.1:3000/find-task-by-title?title=' + searchTitle;
+      fetch(query)
+        .then((res) => res.json())
+        .then((data) => {
+          var array = [];
+          // console.log(data);
+          setData(data.result);
+        })
+        .catch((err) => {
+          console.log(err.message);
+        });
+    }
+  };
+
+  const searchByAssignee = (value) => {
+    var query = 'http://127.0.0.1:3000/find-task-by-assignee?assignee=' + searchAssignee;
+    fetch(query)
+      .then((res) => res.json())
+      .then((data) => {
+        var array = [];
+        // console.log(data);
+        setData(data.result);
+        // setOriginalData(array);
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
+  };
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleAddClick =async () => {
+  const handleAddClick = async () => {
     const now = new Date();
     const formattedDateTime = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
-    console.log(formattedDateTime);
+    // console.log(formData);
+
     if (formData.title && formData.assignee && formData.content && formData.status) {
       const newTask = {
         title: formData.title,
-        assignee:formData.assignee,
+        assignee: formData.assignee,
         content: formData.content,
         status: formData.status,
-        create_at:formattedDateTime
+        create_at: formattedDateTime
       };
-      
-      const response = await fetch('http://127.0.0.1:3000/add-task', {
-        method: 'POST',
-        body: JSON.stringify(newTask),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      const result = await response.json();
-      // console.log(result);
 
-    
-      setData([...data, newTask]);
-      alert("Task added successfully !");
-      setFormData({ title: "", assignee: "", content: "",status:"" });
+      try {
+        const response = await fetch('http://127.0.0.1:3000/add-task', {
+          method: 'POST',
+          body: JSON.stringify(newTask),
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const result = await response.json();
+        console.log("API Response:", result);
+
+        if (response.ok) {
+          var query = 'http://127.0.0.1:3000/task?page=1&?limit=5';
+          fetch(query)
+            .then((res) => res.json())
+            .then((data) => {
+              var array = [];
+              for (let index = 0; index < 5; index++) {
+                if(data.result[index]) array.push(data.result[index]);
+              }
+              setData(array);
+              setTotalPage(data.totalPages + 1);
+            })
+            .catch((err) => {
+              console.log(err.message);
+            });
+          alert("Task added successfully!");
+          setFormData({ title: "", assignee: "", content: "", status: "Todo" });
+        } else {
+          alert("Task addition failed!");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+      }
+    } else {
+      alert("Please fill in all fields");
     }
   };
 
@@ -101,16 +225,15 @@ const DataTable = () => {
       return;
     }
 
-    const updatedList = data.map((item) =>{
-      if(item.taskId === id ){
-        console.log(item);
+    const updatedList = data.map((item) => {
+      if (item.taskId === id) {
         fetch(`http://127.0.0.1:3000/update-task/${item.taskId}`, {
           method: "PUT",
           body: JSON.stringify({
-            title:item.title,
-            content:item.content,
-            assignee:item.assignee,
-            status:item.status
+            title: item.title,
+            content: item.content,
+            assignee: item.assignee,
+            status: item.status
           }),
           headers: {
             "Content-type": "application/json; charset=UTF-8",
@@ -118,21 +241,13 @@ const DataTable = () => {
         })
           .then(response => response.json())
           .then(() => {
-            AppToaster.show({
-              message: "Task updated successfully",
-              intent: "success",
-              timeout: 3000,
-            })
+            // Handle success notification
           });
-        return { ...item, ...updatedData }
-      }
-      else{
+        return { ...item, ...updatedData };
+      } else {
         return item;
       }
-    }
-    );
-
-    // console.log(updatedList);
+    });
 
     setData(updatedList);
   };
@@ -142,103 +257,181 @@ const DataTable = () => {
       setCurrentPage((prev) => prev - 1);
     }
     const updatedList = data.filter((item) => item.taskId !== taskId);
-    
-    var query = `http://127.0.0.1:3000/delete?taskId=${taskId}&?userId=${userId}`;
-    console.log(query);
-    fetch(query, {
-      method: 'DELETE'
-    })
-    .then(res => res.json())
-    .then(data => {
-      alert("Task deleted successfully!");
-      console.log(data);})
-    .catch(error => console.error(error));
 
-    setData(updatedList);
+    if (confirm("Are you sure to delete this task?")) {
+      var query = `http://127.0.0.1:3000/delete?taskId=${taskId}&userId=${userId}`;
+      fetch(query, {
+        method: 'DELETE'
+      })
+        .then(res => res.json())
+        .then(() => {
+          alert("Task deleted successfully!");
+        })
+        .catch(error => console.error(error));
+
+      setData(updatedList);
+    }
   };
 
   useEffect(() => {
-    fetch('http://127.0.0.1:3000/')
-       .then((res) => res.json())
-       .then((data) => {
-        var array=[];
-          var formattedData = data.users.forEach((user)=>
-          {
-            var temp = user.tasks.forEach((task)=>{
-              array.push({
-                userId: user.userId,
-                assignee: user.assignee,
-                taskId: task._id,
-                title: task.title,
-                content: task.content,
-                status: task.status,
-                create_at:task.create_at
-              });
-            });
+    var query = 'http://127.0.0.1:3000/task?page=1&?limit=5';
+    fetch(query)
+      .then((res) => res.json())
+      .then((data) => {
+        if(data.result){
+          var array = [];
+          for (let index = 0; index < 5; index++) {
+            if(data.result[index])array.push(data.result[index]);
           }
-        );
-          // console.log(array);
           setData(array);
-          setOriginalData(array);
-       })
-       .catch((err) => {
-          console.log(err.message);
-       });
+          setTotalPage(data.totalPages + 1);
+        }else setData([]);
+       
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
   }, []);
+
+  useEffect(() => {
+    fetch('http://localhost:3000/all-user')
+      .then((res) => res.json())
+      .then((data) => {
+        setUsers(data.user);
+        console.log(data.user);
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
+  }, []);
+
+  const handleModalInputChange = (e) => {
+    setModalData({ ...modalData, [e.target.name]: e.target.value });
+    // console.log(modalData);
+  };
+
+
+  const handleSubmit= (event)=> {
+    var temp = users.find((user)=>user.assignee=="No assignee");
+    if((temp._id==modalData.userId)&&(user.status!="Todo")){
+      alert("invalid");
+    }else{
+      const updatedList = data.map((item) => {
+        if (item.taskId === modalData.taskId) {
+          fetch(`http://127.0.0.1:3000/update-task/${item.taskId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              title: modalData.title,
+              content: modalData.content,
+              assignee: modalData.userId,
+              status: modalData.status
+            }),
+            headers: {
+              "Content-type": "application/json; charset=UTF-8",
+            },
+          })
+            .then(response => response.json())
+            .then(() => {
+              setData(updatedList);
+              closeModal();
+              alert("Task updated successfull!");
+            });
+          return { ...item, ...updatedData };
+        } else {
+          return item;
+        }
+      });
+    
+    }
+  
+  }
 
   return (
     <div className="container">
-      <div className="add-container">
-        <div className="info-container">
-          <input
-            type="text"
-            placeholder="Title"
-            name="title"
-            value={formData.title}
-            onChange={handleInputChange}
-          />
-          <input
-            type="text"
-            placeholder="Assignee"
-            name="assignee"
-            value={formData.assignee}
-            onChange={handleInputChange}
-          />
-          <input
-            type="text"
-            placeholder="Content"
-            name="content"
-            value={formData.content}
-            onChange={handleInputChange}
-          />
-          <select name="status" value={formData.status} onChange={handleInputChange}>
-            <option value="">Status ⬇ </option>
-            <option value="Todo">Todo</option>
-            <option value="Inprogress">Inprogress</option>
-            <option value="Done">Done</option>
-          </select>
-          
-        </div>
-        <button className="add" onClick={handleAddClick}>
-          ADD
-        </button>
+      <div>
+        <Popup
+          trigger={<button onClick={() => setIsPopupOpen(true)}> Add</button>}
+          position="center"
+          className="popup"
+          onClose={() => setIsPopupOpen(false)}
+        >
+          <div>
+            <div className="info-container">
+              <input
+                type="text"
+                value="ADD A NEW TASK"
+                readOnly
+              />
+              <input
+                type="text"
+                placeholder="Title"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+              />
+              <select
+                name="assignee"
+                value={formData.assignee}
+                onChange={handleInputChange}
+              >
+                <option value="" disabled>Select assignee</option>
+                {users.map((user) => (
+                  <option value={user._id}>{user.assignee.trim() ? user.assignee : "No assignee"}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Content"
+                name="content"
+                value={formData.content}
+                onChange={handleInputChange}
+              />
+              <input
+                type="text"
+                placeholder="status"
+                name="status"
+                value={formData.status}
+                readOnly
+                hidden
+              />
+              <div>
+                <button className="add" onClick={handleAddClick}>
+                  ADD
+                </button>
+              </div>
+            </div>
+          </div>
+        </Popup>
       </div>
 
       <div className="search-table-container">
-        <input
-          className="search-input"
-          type="text"
-          placeholder="Search by title"
-          value={searchTitle}
-          onChange={handleSearch}
-        />
-         <input
-          className="search-input"
-          type="text"
-          placeholder="Search by assignee"
-          value={searchAssignee}
-          onChange={handleAssigneeSearch}
-        />
+        <div className="block-search">
+          <input id="search-text"
+            className="search-input"
+            type="text"
+            placeholder="Search by title"
+            value={searchTitle}
+            onChange={handleSearch}
+          />
+          <button onClick={searchByTitle}>
+            Search by title
+          </button>
+        </div>
+        <div className="block-search">
+          <select id="select"
+            name="assignee"
+            value={formData.assignee}
+            onChange={handleAssigneeSearch}
+          >
+            <option value="" disabled>Select assignee</option>
+            {users.map((user) => (
+              <option value={user._id}>{user.assignee.trim() ? user.assignee : "No assignee"}</option>
+            ))}
+          </select>
+          <button className="search" onClick={searchByAssignee}>
+            Search by assignee
+          </button>
+        </div>
 
         <table ref={outsideClick}>
           <thead>
@@ -271,7 +464,7 @@ const DataTable = () => {
                     handleEdit(item.taskId, { assignee: e.target.innerText })
                   }
                 >
-                  {item.assignee}
+                  {item.assignee !== " " ? item.assignee : "No assignee"}
                 </td>
                 <td
                   id={item.taskId}
@@ -282,30 +475,17 @@ const DataTable = () => {
                 >
                   {item.content}
                 </td>
-                {/* <td
+                <td
                   id={item.taskId}
                   contentEditable={editId === item.taskId}
                   onBlur={(e) =>
-                    handleEdit(item.taskId, { status: e.target.innerText})
+                    handleEdit(item.taskId, { status: e.target.innerText })
                   }
                 >
                   {item.status}
-                </td> */}
-                  <td id={item.taskId}
-                  contentEditable={editId === item.taskId}   > 
-                  <select
-                    name="status"
-                    value={item.status}
-                    onChange={(e) => handleEdit(item.taskId, { status: e.target.value })}
-                  >
-                    <option value="Todo" selected={item.status === "Todo"}>Todo</option>
-                    <option value="Inprogress" selected={item.status === "Inprogress"}>Inprogress</option>
-                    <option value="Done" selected={item.status === "Done"}>Done</option>
-                  </select>
-                  </td>
+                </td>
                 <td>
-                  {/* {item.create_at = new Date(item.create_at).toLocaleDateString()} */}
-                  {item.create_at}
+                  {format(new Date(item.create_at), 'MMMM do yyyy, h:mm:ss a')}
                 </td>
                 <td className="taskId" hidden>
                   {item.taskId}
@@ -313,21 +493,75 @@ const DataTable = () => {
                 <td className="userId" hidden>
                   {item.userId}
                 </td>
-                
-                
                 <td className="actions">
-                  <button
-                    className="edit"
-                    onClick={() => {
-                      setEditId(item.taskId);
-                    }}
+                  <button onClick={() => openModal(item)}>Edit</button>
+                  <Modal
+                    isOpen={modalIsOpen}
+                    onAfterOpen={afterOpenModal}
+                    onRequestClose={closeModal}
+                    style={customStyles}
                   >
-                    Edit
-                  </button>
-
+                    <h2 ref={(_subtitle) => (subtitle = _subtitle)}>Update task</h2>
+                    <form  onSubmit={handleSubmit}>
+                    <label for="title">Title</label>
+                    <br/>
+                      <input
+                        id='title'
+                        type="text"
+                        name="title"
+                        value={modalData.title}
+                        onChange={handleModalInputChange}
+                      />
+                      <br/>
+                      <label for="assignee">Assignee</label>
+                      <br/>
+                      {/* <input
+                        id="assignee"
+                        type="text"
+                        name="assignee"
+                        value={modalData.assignee}
+                        onChange={handleModalInputChange}
+                      /> */}
+                        <select
+                          name="userId"
+                         
+                          onChange={handleModalInputChange}
+                        >
+                          <option value={modalData.assignee}>{modalData.assignee}</option>
+                          {users.map((user) => (
+                            <option value={user._id}>{user.assignee.trim() ? user.assignee : "No assignee"}</option>
+                          ))}
+                        </select>
+                       <br/>
+                       <label for="content">Assignee</label>
+                      <br/>
+                      <input
+                        id="content"
+                        type="text"
+                        name="content"
+                        value={modalData.content}
+                        onChange={handleModalInputChange}
+                      />
+                       <br/>
+                       <label for="status">Assignee</label>
+                      <br/>
+                      <select id="status"
+                        name="status"
+                        onChange={handleModalInputChange}
+                      > <option value={modalData.status}>{modalData.status} </option>
+                        <option value="Todo">Todo</option>
+                        <option value="Inprogress">Inprogress</option>
+                        <option value="Done">Done</option>
+                      </select>
+                   
+                      <br/>
+                      <button id="buttonSave" type="submit" value="Submit">Save</button>
+                      <button id="buttonCancel" type="button" onClick={closeModal}>Close</button>
+                    </form>
+                  </Modal>
                   <button
                     className="delete"
-                    onClick={() => handleDelete(item.taskId,item.userId)}
+                    onClick={() => handleDelete(item.taskId, item.userId)}
                   >
                     Delete
                   </button>
@@ -338,7 +572,7 @@ const DataTable = () => {
         </table>
         <div className="pagination">
           {Array.from(
-            { length: Math.ceil(filteredItems.length / itemsPerPage) },
+            { length: total },
             (_, index) => (
               <button
                 key={index + 1}
