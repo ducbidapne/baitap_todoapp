@@ -1,4 +1,40 @@
-/* @import url("https://fonts.googleapis.com/css?family=Josefin+Sans");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
 body {
-  font-family: "Josefin Sans", cursive;
-} */
+  font-family: "Poppins",sans-serif;
+}
+.MuiPaper-root {
+  max-width: 1000px;
+  max-height: 400px; 
+  min-height: 400px;
+  margin-top: auto;
+  margin-left: auto; 
+  margin-right: auto;
+
+}
+
+.mui-table-pagination {
+  position: absolute;
+  bottom: -35px;
+  background-color:steelblue;
+  border-radius: 15px;
+}
+.btn-add {
+  position: absolute;
+  top: 0px;
+  right: 0px; 
+}
+.btn-search{
+  top: 0px;
+  right: 0px; 
+}
+.MUIDataTableHead {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+

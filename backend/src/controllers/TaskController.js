@@ -1,4 +1,3 @@
-const { id } = require("schema/lib/objecttools");
 const Task = require("../models/TaskModel");
 const User = require('../models/UserModel');
 
@@ -7,29 +6,19 @@ exports.findTaskByTitle = async (req,res)=>{
     var title = req.query.title;
     const tasks = await Task.find({title:title})
       .sort({ create_at: -1 })
-      .populate('assignee');  
+      .populate('userId');  
     const result = tasks.map(task => {
-      if (task.assignee) {
+      if (task.userId) {
         return {
-          userId: task.assignee._id,
-          assignee: task.assignee.assignee,
+          userId: task.userId._id,
+          assignee: task.userId.assignee,
           taskId: task._id,
           title: task.title,
           content: task.content,
           status: task.status,
           create_at: task.create_at,
         };
-      } else {
-        return {
-          userId: null,
-          assignee: null,
-          taskId: task._id,
-          title: task.title,
-          content: task.content,
-          status: task.status,
-          create_at: task.create_at,
-        };
-    }});
+      }});
     return res.status(200).json({result});
   } catch (error) {
     console.error(error);
@@ -38,36 +27,26 @@ exports.findTaskByTitle = async (req,res)=>{
 }
 exports.findTaskByAssignee = async(req,res)=>{
   try {
-    var userId =req.query.assignee;
+    var userId =req.query.userId;
     if(!userId){
       return res.status(404).json({message:"Invalid id"});
     }    
-    const tasks = await Task.find({assignee:userId})
+    const tasks = await Task.find({userId:userId})
       .sort({ create_at: -1 })
-      .populate('assignee');  
+      .populate('userId');  
 
     const result = tasks.map(task => {
-      if (task.assignee) {
+      if (task.userId) {
         return {
-          userId: task.assignee._id,
-          assignee: task.assignee.assignee,
+          userId: task.userId._id,
+          assignee: task.userId.assignee,
           taskId: task._id,
           title: task.title,
           content: task.content,
           status: task.status,
           create_at: task.create_at,
         };
-      } else {
-        return {
-          userId: null,
-          assignee: null,
-          taskId: task._id,
-          title: task.title,
-          content: task.content,
-          status: task.status,
-          create_at: task.create_at,
-        };
-    }});
+      }});
     return res.status(200).json({result});
   } catch (error) {
     console.error(error);
@@ -102,21 +81,23 @@ exports.getAllTasks = async (req,res)=>{
 
 exports.addTask = async(req,res)=>{
   console.log("Method POST: /add-task");
+  
   try {
-    const { title, content, status, create_at, assignee } = req.body;
+  
+    const { title, content, status, create_at, userId} = req.body;
     const task = new Task({
       title,
       content,
       status,
       create_at: create_at || Date.now(), 
-      assignee  
+      userId
     });
 
     const savedTask = await task.save();
 
-    let user = await User.findById(assignee);
+    let user = await User.findById(userId);
     if (!user) {
-      user = new User({ _id: assignee, task: [savedTask._id] });
+      user = new User({ _id: userId, task: [savedTask._id] });
     } else {
       user.task.push(savedTask._id);
     }
@@ -134,6 +115,11 @@ exports.deleteTaskById = async (req,res)=>{
     try {
         const taskId = req.query.taskId; 
         const userId = req.query.userId; 
+        const task = await Task.findById(taskId);
+        if (!task) {
+          return res.status(404).json({ message: `Task with ID ${taskId} not found` });
+        }
+
     
         const deletedTask = await Task.findByIdAndDelete(taskId);
     
@@ -152,23 +138,23 @@ exports.deleteTaskById = async (req,res)=>{
 }
 
 exports.updateTaskById = async (req,res)=>{
-  console.log("Method PUT: /update-task/:taskId");
+  console.log("Method PUT: /update-task");
   try {
-    const taskId = req.params.taskId;
-    const { title, content, status, assignee } = req.body;
-    const taskToUpdate = await Task.findById(taskId).populate('assignee');
+    const taskId = req.query.taskId;
+    const { title, content, status, userId } = req.body;
+    const taskToUpdate = await Task.findById(taskId).populate('userId');
     if (!taskToUpdate) {
       return res.status(404).json({ message: 'Task not found' });
     }
 
-    if (taskToUpdate.assignee._id.toString() !== assignee) {
-      await User.findByIdAndUpdate(taskToUpdate.assignee._id, {
+    if (taskToUpdate.userId !== userId) {
+      await User.findByIdAndUpdate(taskToUpdate.userId, {
         $pull: { task: taskId }
       });
 
-      let newUser = await User.findById(assignee);
+      let newUser = await User.findById(userId);
       if (!newUser) {
-        newUser = new User({ _id: assignee, task: [taskId] });
+        newUser = new User({ _id: userId, task: [taskId] });
       } else {
         newUser.task.push(taskId);
       }
@@ -176,7 +162,7 @@ exports.updateTaskById = async (req,res)=>{
       taskToUpdate.title = title;
       taskToUpdate.content = content;
       taskToUpdate.status = status;
-      taskToUpdate.assignee = newUser._id;
+      taskToUpdate.userId = newUser._id;
 
       const updatedTask = await taskToUpdate.save();
 
@@ -196,14 +182,11 @@ exports.updateTaskById = async (req,res)=>{
 }
 
 exports.getAllUser = async(req,res)=>{
-  try {
-    const { taskId } = req.params;
-    
+  try { 
     const user = await User.find();
     if (!user) {
     return res.status(404).json({ message: 'Server error' });
   }
-
 
   res.json({user:user});
   } catch (error) {
@@ -213,42 +196,39 @@ exports.getAllUser = async(req,res)=>{
 exports.getPaginationTasks = async (req, res) => {
   console.log("Method GET: /tasks");
   try {
+    
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 5;
+    const search = req.query.search;
     const skip = (page - 1) * limit;
 
-    const tasks = await Task.find()
+    let query = Task.find();
+    // console.log(page,limit,search);
+    if (search) {
+      query = query.find({ $or: [{ title: { $regex: search, $options: 'i' } },
+                        { content: { $regex: search, $options: 'i' } }] });
+    }
+    const totalTasks = await Task.countDocuments(query);
+    const totalPages = Math.ceil(totalTasks / limit);
+
+    const tasks = await query.find()
       .sort({ create_at: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('assignee');  
-
-    const totalTasks = await Task.countDocuments();
-    const totalPages = Math.ceil(totalTasks / limit);
+      .populate('userId');  
 
     const result = tasks.map(task => {
-      if (task.assignee) {
+      if (task.userId) {
         return {
-          userId: task.assignee._id,
-          assignee: task.assignee.assignee,
+          userId: task.userId._id,
+          assignee: task.userId.assignee,
           taskId: task._id,
           title: task.title,
           content: task.content,
           status: task.status,
           create_at: task.create_at,
         };
-      } else {
-        return {
-          userId: null,
-          assignee: null,
-          taskId: task._id,
-          title: task.title,
-          content: task.content,
-          status: task.status,
-          create_at: task.create_at,
-        };
-    }});
-    // console.log(result);
+      }});
     return res.status(200).json({
       result,
       totalPages,
@@ -259,6 +239,7 @@ exports.getPaginationTasks = async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 }
+
 
 
 

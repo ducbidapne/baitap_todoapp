@@ -6,7 +6,7 @@ const taskSchema = new schema({
     content:String,
     status:String,
     create_at: { type: Date, default:Date.now() },
-    assignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
 
 module.exports=mongoose.model("Task",taskSchema);
